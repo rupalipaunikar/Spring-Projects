@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+	    http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:annotation-config/>
+    <context:component-scan base-package="com.spring.core"/>
+
+    <bean id="fatherTriangle" class="com.spring.core.Triangle" abstract="true">
+        <property name="pointA" ref ="pCenter"/>
+    </bean>
+
+    <bean id="parentTriangle" class="com.spring.core.Triangle" parent="fatherTriangle">
+        <property name="pointA" ref ="pCenter" />
+    </bean>
+
+    <bean id ="triangle1" class="com.spring.core.Triangle" parent="parentTriangle" >
+        <property name="pointB" ref ="pointB"/>
+        <property name="pointC" ref="centerPoint"/>
+
+    </bean>
+
+    <bean id ="triangle2" class="com.spring.core.Triangle"  parent="parentTriangle" autowire-candidate="false"  >
+        <property name="pointB" ref ="pointB"/>
+        <property name="pointC" >
+            <bean class="com.spring.core.Point" name="pCenter">
+                <property name="x" value="9" />
+                <property name="y" value="-9" />
+            </bean>
+        </property>
+    </bean>
+
+    <bean id ="triangle3" class="com.spring.core.Triangle" autowire="byName" />
+
+    <bean id="pointA" class="com.spring.core.Point" name="pCenter">
+        <property name="x" value="${pCenter.pointX}" />
+        <property name="y" value="${pCenter.pointY}" />
+    </bean>
+
+    <bean id="pointB" class="com.spring.core.Point" >
+        <property name="x" value="-10" />
+        <property name="y" value="-10" />
+    </bean>
+
+    <bean id="pointC" class="com.spring.core.Point" >
+        <property name="x" value="10" />
+        <property name="y" value="10" />
+    </bean>
+
+    <bean id="line" class="com.spring.core.Line" scope="prototype">
+        <property name="points">
+            <list>
+                <ref bean="pCenter"/>
+                <ref bean="pointB"/>
+                <ref bean="pointC"/>
+            </list>
+        </property>
+        <property name="propertiesMap">
+            <map>
+                <entry key="type" value="perpendicular"/>
+                <entry key="thickness" value="0.5mm"/>
+            </map>
+        </property>
+    </bean>
+    <alias name="pCenter" alias="centerPoint"/>
+
+    <bean id="circle" class="com.spring.core.Circle" init-method="initMethod" destroy-method="destroyMethod">
+        <!--<qualifier value="pointA"/>-->
+        <property name="id" value="999"/>
+    </bean>
+
+     <bean class="com.spring.core.DisplayNameBeanPostProcessor" />
+     <!--<bean class="com.spring.core.MyBeanFactoryPostProcessor" />-->
+
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer" >
+        <property name="locations" value="pointsconfig.properties"></property>
+    </bean>
+</beans>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/integration"
+	xmlns:stream="http://www.springframework.org/schema/integration/stream"
+	xmlns:mail="http://www.springframework.org/schema/integration/mail"
+	xmlns:ws="http://www.springframework.org/schema/integration/ws"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:http="http://www.springframework.org/schema/integration/http"
+	xmlns:util="http://www.springframework.org/schema/util" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/integration
+		http://www.springframework.org/schema/integration/spring-integration-4.1.xsd
+		http://www.springframework.org/schema/integration/mail
+		http://www.springframework.org/schema/integration/mail/spring-integration-mail.xsd
+		http://www.springframework.org/schema/integration/ws
+		http://www.springframework.org/schema/integration/ws/spring-integration-ws.xsd
+		http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/util
+		http://www.springframework.org/schema/util/spring-util.xsd
+		http://www.springframework.org/schema/integration/http 
+		http://www.springframework.org/schema/integration/http/spring-integration-http-4.1.xsd
+		http://www.springframework.org/schema/integration/stream
+		http://www.springframework.org/schema/integration/stream/spring-integration-stream-4.1.xsd">
+
+	<context:property-placeholder location="classpath:applicationContext.properties" />
+
+	<!-- Channel definitions -->
+	<publish-subscribe-channel id="newLeadChannel" />
+	<channel id="domesticChannel" />
+	<channel id="internationalChannel" />
+	<channel id="jsonOutChannel" />
+	<channel id="createLeadOutChannel" />
+	<channel id="splitOutchannel" />
+	<channel id="agregOutChannel" />
+
+	<beans:bean id="splitter"  class="crm.integration.splitters.LeadSplitter"/>
+	<beans:bean id="aggregator"  class="crm.integration.aggregators.LeadAggregator"/>
+	
+	<!-- Entry point -->
+	<gateway id="leadGateway" service-interface="crm.integration.gateways.LeadGateway" default-request-channel="newLeadChannel" />
+
+   	<!-- Router -->
+	<router input-channel="newLeadChannel">
+		<beans:bean id="countryRouter" class="crm.integration.routers.CountryRouter" />
+	</router>
+	
+	<!-- Domestic channel route -->
+	<service-activator ref="leadService" method="createLead" input-channel="domesticChannel"  output-channel="createLeadOutChannel" />
+	<splitter ref="splitter" input-channel="createLeadOutChannel" output-channel="splitOutchannel"/>
+	<aggregator ref="aggregator" input-channel="splitOutchannel" output-channel="agregOutChannel"/>
+	<object-to-json-transformer input-channel="agregOutChannel" output-channel="jsonOutChannel"/>
+	<stream:stdout-channel-adapter channel="jsonOutChannel"/> 
+		
+	<!-- International channel chain -->
+	<chain input-channel="internationalChannel">
+		<transformer>
+			<beans:bean class="crm.integration.transformers.LeadToEmailTransformer">
+				<beans:property name="confFrom" value="${conf.email.from}" />
+				<beans:property name="confSubject" value="${conf.email.subject}" />
+				<beans:property name="confText" value="${conf.email.text}" />
+			</beans:bean>
+		</transformer>
+		<enricher>
+			<property name="cc" value="CC" />
+		</enricher>
+		<service-activator ref="emailService" method="display" />
+		<service-activator ref="emailService" method="sendEmail" />
+		<http:outbound-channel-adapter url="http://localhost:8080/crm/main/lead/demo" http-method="GET" />
+	</chain>
+
+</beans:beans>
